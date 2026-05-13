@@ -1,2 +1,0 @@
-# mentomentilegned
-sd
