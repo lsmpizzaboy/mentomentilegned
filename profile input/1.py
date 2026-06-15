@@ -23,7 +23,7 @@ role = st.radio("당신의 역할은 무엇인가요?", ("멘토", "멘티"))
 # 프로필 입력 폼
 with st.form("profile_form"):
     name = st.text_input("이름 (또는 닉네임)")
-    subject_list = ["국어", "수학", "영어", "과학", "사회", "파이썬", "C언어", "기타"]
+    subject_list = ["국어", "수학", "영어", "과탐", "사탐", "기타"]
     time_list = ["평일 방과후", "평일 저녁", "주말 오전", "주말 오후", "주말 저녁"]
     
     date_range = []
