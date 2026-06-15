@@ -2,13 +2,14 @@ import streamlit as st
 from supabase import create_client
 import datetime
 
-# 1. 수파베이스 클라이언트 초기화
+# 1. 수파베이스 클라이언트 초기화 (새로운 가로 정렬 방식)
 try:
-    url = st.secrets["SUPABASE_URL"]
-    key = st.secrets["SUPABASE_KEY"]
+    # [supabase] 섹션 안에서 url과 key를 깔끔하게 가져옵니다.
+    url = st.secrets["supabase"]["url"]
+    key = st.secrets["supabase"]["key"]
     supabase = create_client(url, key)
 except Exception as e:
-    st.error("스트림릿 Secrets 설정에 오류가 있습니다.")
+    st.error(f"스트림릿 Secrets 설정에 오류가 있습니다: {e}")
     st.stop()
 
 st.set_page_config(page_title="멘토-멘티 매칭 시스템", page_icon="🤝")
