@@ -148,11 +148,31 @@ else:
                             "mentee_deadline": mentee_deadline  # 멘토일 때는 자동으로 NULL(빈값) 저장됨
                         }
                         
-                        # 기존에 이 학번으로 등록된 프로필이 있다면 업데이트(수정), 없으면 새로 추가(insert)
-                        # 이 방식을 쓰려면 profiles 테이블의 student_id 컬럼이 고유(Unique)하게 지정되어 있어야 안전합니다.
-                        # 여기서는 가장 에러 확률이 낮은 insert 방식을 기본으로 채택합니다.
-                        supabase.table("profiles").insert(profile_data).execute()
-                        st.success(f"🎉 {st.session_state.name}님의 프로필이 안전하게 데이터베이스에 저장되었습니다!")
+                       
+                        # 전송할 데이터 묶음 구성
+                        profile_data = {
+                            "student_id": st.session_state.student_id,
+                            "role": role,
+                            "name": st.session_state.name,
+                            "subjects": subjects,
+                            "available_times": available_times,
+                            "bio": bio,
+                            "mentee_deadline": mentee_deadline
+                        }
+                        
+                        # --- [여기가 핵심 추가 부분입니다!] ---
+                        # 1. 현재 학번으로 등록된 프로필이 이미 있는지 데이터베이스 검색
+                        check_exist = supabase.table("profiles").select("*").eq("student_id", st.session_state.student_id).execute()
+                        
+                        # 2. 만약 검색 결과가 1개라도 있다면 에러 메시지 띄우고 저장 중단
+                        if len(check_exist.data) > 0:
+                            st.error(f"⚠️ 이미 프로필을 등록하셨습니다! 하나의 계정당 하나의 프로필만 가질 수 있습니다.")
+                        
+                        # 3. 검색 결과가 없다면(처음 등록이라면) 정상적으로 저장
+                        else:
+                            supabase.table("profiles").insert(profile_data).execute()
+                            st.success(f"🎉 {st.session_state.name}님의 프로필이 안전하게 데이터베이스에 저장되었습니다!")
+                        # -----------------------------------
                         
                     except Exception as e:
                         st.error(f"데이터베이스 저장 실패: {e}")
