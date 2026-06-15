@@ -96,7 +96,7 @@ else:
         # 이름은 로그인 정보를 바탕으로 자동 고정 (수정 불가로 안정성 확보)
         st.text_input("이름", value=st.session_state.name, disabled=True)
         
-        subject_list = ["국어", "수학", "영어", "과학", "사회", "파이썬", "C언어", "기타"]
+        subject_list = ["국어", "수학", "영어", "과탐", "사탐","수행평가", "기타"]
         time_list = ["평일 방과후", "평일 저녁", "주말 오전", "주말 오후", "주말 저녁"]
         
         date_range = []
