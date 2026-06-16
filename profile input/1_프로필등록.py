@@ -147,7 +147,7 @@ else:
     with st.form(f"profile_form_{role}"):
         st.text_input("이름", value=st.session_state.name, disabled=True)
         
-        subject_list = ["국어", "수학", "영어", "과학", "사회", "파이썬", "C언어", "기타"]
+        subject_list = ["국어", "수학", "영어", "과탐", "사탐", "기타"]
         time_list = ["평일 방과후", "평일 저녁", "주말 오전", "주말 오후", "주말 저녁"]
         
         if role == "멘토":
