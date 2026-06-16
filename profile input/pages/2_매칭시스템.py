@@ -69,12 +69,27 @@ except Exception as e:
 st.markdown("---")
 
 # ==========================================
-# 3. 멘토/멘티 목록 보여주기 (기존 코드)
+# 3. 멘토/멘티 목록 필터링 및 보여주기
 # ==========================================
+
+# [새로운 로직] 이미 매칭이 완료된(수락됨) 멘티들의 학번을 데이터베이스에서 찾아냅니다.
+try:
+    accepted_res = supabase.table("matches").select("mentee_id").eq("status", "수락됨").execute()
+    # 수락된 멘티들의 학번만 모아서 하나의 리스트로 만듭니다. (예: ["30516", "10101"])
+    accepted_mentee_ids = [match["mentee_id"] for match in accepted_res.data]
+except Exception as e:
+    st.error(f"매칭 완료 데이터를 불러오지 못했습니다: {e}")
+    accepted_mentee_ids = []
+
+# 멘토 목록은 그대로 가져옵니다.
 mentors = [p for p in all_profiles if p.get("role") == "멘토"]
-mentees = [p for p in all_profiles if p.get("role") == "멘티"]
+
+# 멘티 목록은 '수락된 멘티 명단(accepted_mentee_ids)'에 없는 학생만 걸러서 가져옵니다.
+mentees = [p for p in all_profiles if p.get("role") == "멘티" and p.get("student_id") not in accepted_mentee_ids]
 
 tab1, tab2 = st.tabs(["👨‍🏫 등록된 멘토 목록", "👩‍🎓 등록된 멘티 목록"])
+
+# (이 아래부터는 기존의 with tab1: 과 with tab2: 코드를 그대로 두시면 됩니다!)
 
 # --- [👨‍🏫 멘토 목록 탭] ---
 with tab1:
