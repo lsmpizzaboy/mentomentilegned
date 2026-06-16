@@ -87,15 +87,16 @@ try:
     my_mentors_res = supabase.table("matches").select("*").eq("mentee_id", st.session_state.student_id).eq("status", "수락됨").execute()
     my_mentors = my_mentors_res.data
     
-    profiles_res = supabase.table("profiles").select("*").execute()
-    profile_dict = {p["student_id"]: p for p in profiles_res.data}
+  profiles_res = supabase.table("profiles").select("*").execute()
+    all_profiles = profiles_res.data  # 딕셔너리 대신 전체 리스트로 저장
     
     if not my_mentors:
         st.info("현재 매칭되어 진행 중인 멘토가 없습니다. '매칭 시스템'에서 멘토를 구해보세요!")
     else:
         for match in my_mentors:
             mentor_id = match["mentor_id"]
-            mentor_profile = profile_dict.get(mentor_id, {})
+            # 💡 [핵심 수정] 학번이 일치하면서 동시에 역할이 '멘토'인 프로필만 정확하게 꼬집어옵니다!
+            mentor_profile = next((p for p in all_profiles if p["student_id"] == mentor_id and p["role"] == "멘토"), {})
             mentor_name = mentor_profile.get("name", "알 수 없는 멘토")
             
             unread_res = supabase.table("chat_messages").select("id", count="exact").eq("match_id", match["id"]).eq("is_read", False).neq("sender_id", st.session_state.student_id).execute()
