@@ -1,5 +1,6 @@
 import streamlit as st
 from supabase import create_client
+import base64
 
 # 1. 수파베이스 클라이언트 초기화
 try:
@@ -25,6 +26,7 @@ if "current_chat_match" in st.session_state:
         del st.session_state.current_chat_match
         st.rerun()
         
+    # 읽음 처리
     supabase.table("chat_messages").update({"is_read": True}).eq("match_id", match['id']).neq("sender_id", st.session_state.student_id).execute()
     
     chat_res = supabase.table("chat_messages").select("*").eq("match_id", match['id']).order("created_at", desc=False).execute()
@@ -36,9 +38,35 @@ if "current_chat_match" in st.session_state:
             st.info("궁금한 점이나 첫 인사를 남겨보세요!")
         for msg in messages:
             is_me = (msg["sender_id"] == st.session_state.student_id)
-            with st.chat_message("assistant" if is_me else "user"):
-                st.write(msg["message"])
+            
+            # 💡 [기능 1] 로봇 대신 실제 보낸 사람의 이름을 말아주기
+            sender_label = f"🙋‍♀️ {st.session_state.name} (나)" if is_me else f"👨‍🏫 {match['partner_name']} 멘토"
+            
+            with st.chat_message("user" if is_me else "assistant", avatar="🐥" if is_me else "👨‍🏫"):
+                st.write(f"**{sender_label}**")
                 
+                # 💡 [기능 2] 이미지 메시지 처리
+                if msg["message"].startswith("DATA_IMAGE:"):
+                    img_base64 = msg["message"].replace("DATA_IMAGE:", "")
+                    st.image(f"data:image/png;base64,{img_base64}", use_container_width=True)
+                else:
+                    st.write(msg["message"])
+                
+    # 💡 [기능 2] 사진 파일 업로더 추가
+    with st.expander("📸 사진 보내기"):
+        uploaded_file = st.file_uploader("이미지 파일을 선택하세요 (jpg, jpeg, png)", type=["png", "jpg", "jpeg"], key="img_uploader")
+        if uploaded_file:
+            if st.button("🚀 선택한 사진 전송하기"):
+                file_bytes = uploaded_file.read()
+                base64_str = base64.b64encode(file_bytes).decode("utf-8")
+                supabase.table("chat_messages").insert({
+                    "match_id": match['id'],
+                    "sender_id": st.session_state.student_id,
+                    "message": f"DATA_IMAGE:{base64_str}"
+                }).execute()
+                st.rerun()
+
+    # 텍스트 입력창
     prompt = st.chat_input("메시지를 입력하세요...")
     if prompt:
         supabase.table("chat_messages").insert({
@@ -51,25 +79,24 @@ if "current_chat_match" in st.session_state:
     st.stop()
 
 # ==========================================
-# [목록 화면 모드]
+# [목록 화면 모드] 기본 화면
 # ==========================================
 st.title("👩‍🎓 나의 멘토 연락망")
-st.write("나와 매칭된 멘토 목록입니다. 궁금한 점을 채팅으로 편하게 물어보세요!")
 
 try:
-    # 내가 멘티이고 상태가 '수락됨'인 매칭 찾기
     my_mentors_res = supabase.table("matches").select("*").eq("mentee_id", st.session_state.student_id).eq("status", "수락됨").execute()
     my_mentors = my_mentors_res.data
     
-    profiles_res = supabase.table("profiles").select("student_id, name").execute()
-    profile_dict = {p["student_id"]: p["name"] for p in profiles_res.data}
+    profiles_res = supabase.table("profiles").select("*").execute()
+    profile_dict = {p["student_id"]: p for p in profiles_res.data}
     
     if not my_mentors:
-        st.info("현재 매칭되어 진행 중인 멘토가 없습니다. '매칭 시스템'에서 멘토에게 신청해 보세요!")
+        st.info("현재 매칭되어 진행 중인 멘토가 없습니다. '매칭 시스템'에서 멘토를 구해보세요!")
     else:
         for match in my_mentors:
             mentor_id = match["mentor_id"]
-            mentor_name = profile_dict.get(mentor_id, "알 수 없는 멘토")
+            mentor_profile = profile_dict.get(mentor_id, {})
+            mentor_name = mentor_profile.get("name", "알 수 없는 멘토")
             
             unread_res = supabase.table("chat_messages").select("id", count="exact").eq("match_id", match["id"]).eq("is_read", False).neq("sender_id", st.session_state.student_id).execute()
             unread_count = unread_res.count
@@ -79,8 +106,15 @@ try:
                 with col1:
                     alert = f" 🔴 **새 메시지 {unread_count}건**" if unread_count > 0 else ""
                     st.write(f"**👨‍🏫 멘토:** {mentor_name} ({mentor_id}) {alert}")
+                    
+                    # 💡 [기능 3] 관리창에서 상대방 프로필 즉시 보기
+                    with st.expander("🔍 이 멘토의 프로필 상세보기"):
+                        st.write(f"📚 **자신 있는 과목:** {', '.join(mentor_profile.get('subjects', []))}")
+                        st.write(f"⏰ **멘토링 시간대:** {', '.join(mentor_profile.get('available_times', []))}")
+                        st.write(f"💬 **멘토 소개:** {mentor_profile.get('bio', '')}")
+                        
                 with col2:
-                    if st.button("💬 질문하기", key=f"chat_{match['id']}", use_container_width=True):
+                    if st.button("💬 질문하러 가기", key=f"chat_{match['id']}", use_container_width=True):
                         st.session_state.current_chat_match = {"id": match["id"], "partner_name": mentor_name}
                         st.rerun()
 
