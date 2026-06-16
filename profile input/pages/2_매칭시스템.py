@@ -28,11 +28,10 @@ except Exception as e:
     all_profiles = []
 
 # ==========================================
-# 🚀 [새로운 기능] 나에게 도착한 멘토링 요청 우편함
+# 📬 나에게 도착한 멘토링 요청 우편함 (멘토 전용)
 # ==========================================
 st.markdown("### 📬 나에게 도착한 멘토링 요청")
 try:
-    # 내 학번이 멘토로 지정되어 있고, 아직 상태가 '대기중'인 신청서만 찾아옵니다.
     req_res = supabase.table("matches").select("*").eq("mentor_id", st.session_state.student_id).eq("status", "대기중").execute()
     my_requests = req_res.data
     
@@ -40,11 +39,9 @@ try:
         st.info("아직 도착한 멘토링 신청이 없습니다.")
     else:
         for req in my_requests:
-            # 신청한 멘티의 프로필 정보 찾기
-            mentee_profile = next((p for p in all_profiles if p["student_id"] == req["mentee_id"]), None)
+            mentee_profile = next((p for p in all_profiles if p["student_id"] == req["mentee_id"] and p["role"] == "멘티"), None)
             mentee_name = mentee_profile["name"] if mentee_profile else "알 수 없는 멘티"
             
-            # 도착한 요청을 보여주는 알림 상자
             with st.expander(f"🔔 {mentee_name} ({req['mentee_id']}) 학생이 멘토링을 신청했습니다!", expanded=True):
                 if mentee_profile:
                     st.write(f"**🔍 도움이 필요한 과목:** {', '.join(mentee_profile.get('subjects', []))}")
@@ -52,13 +49,11 @@ try:
                 
                 col1, col2 = st.columns(2)
                 with col1:
-                    # [수락] 버튼: 누르면 데이터베이스의 상태를 '수락됨'으로 바꿈
                     if st.button("✅ 수락하기", key=f"acc_{req['id']}", use_container_width=True):
                         supabase.table("matches").update({"status": "수락됨"}).eq("id", req["id"]).execute()
-                        st.success("멘토링을 수락했습니다! (이제 채팅이나 연락을 시작할 수 있습니다.)")
-                        st.rerun() # 버튼을 누르면 화면을 새로고침하여 목록에서 지웁니다.
+                        st.success("멘토링을 수락했습니다!")
+                        st.rerun()
                 with col2:
-                    # [거절] 버튼: 누르면 데이터베이스의 상태를 '거절됨'으로 바꿈
                     if st.button("❌ 거절하기", key=f"rej_{req['id']}", use_container_width=True):
                         supabase.table("matches").update({"status": "거절됨"}).eq("id", req["id"]).execute()
                         st.warning("멘토링 신청을 정중히 거절했습니다.")
@@ -71,25 +66,24 @@ st.markdown("---")
 # ==========================================
 # 3. 멘토/멘티 목록 필터링 및 보여주기
 # ==========================================
-
-# [새로운 로직] 이미 매칭이 완료된(수락됨) 멘티들의 학번을 데이터베이스에서 찾아냅니다.
 try:
     accepted_res = supabase.table("matches").select("mentee_id").eq("status", "수락됨").execute()
-    # 수락된 멘티들의 학번만 모아서 하나의 리스트로 만듭니다. (예: ["30516", "10101"])
     accepted_mentee_ids = [match["mentee_id"] for match in accepted_res.data]
 except Exception as e:
     st.error(f"매칭 완료 데이터를 불러오지 못했습니다: {e}")
     accepted_mentee_ids = []
 
-# 멘토 목록은 그대로 가져옵니다.
-mentors = [p for p in all_profiles if p.get("role") == "멘토"]
+# 💡 [버그 해결 핵심 코드 1] 현재 내가 '대기중'이거나 '수락됨' 상태로 신청해 둔 멘토들의 학번 명단 조회
+try:
+    my_active_reqs = supabase.table("matches").select("mentor_id").eq("mentee_id", st.session_state.student_id).in_("status", ["대기중", "수락됨"]).execute()
+    already_applied_mentor_ids = [m["mentor_id"] for m in my_active_reqs.data]
+except Exception as e:
+    already_applied_mentor_ids = []
 
-# 멘티 목록은 '수락된 멘티 명단(accepted_mentee_ids)'에 없는 학생만 걸러서 가져옵니다.
+mentors = [p for p in all_profiles if p.get("role") == "멘토"]
 mentees = [p for p in all_profiles if p.get("role") == "멘티" and p.get("student_id") not in accepted_mentee_ids]
 
 tab1, tab2 = st.tabs(["👨‍🏫 등록된 멘토 목록", "👩‍🎓 등록된 멘티 목록"])
-
-# (이 아래부터는 기존의 with tab1: 과 with tab2: 코드를 그대로 두시면 됩니다!)
 
 # --- [👨‍🏫 멘토 목록 탭] ---
 with tab1:
@@ -99,24 +93,32 @@ with tab1:
     else:
         for mentor in mentors:
             subjects_str = ", ".join(mentor.get("subjects", []))
+            mentor_id = mentor.get("student_id")
+            
             with st.expander(f"▶ [멘토] {mentor.get('name')} 학생 | 📚 과목: {subjects_str}"):
-                st.write(f"🆔 **학번:** {mentor.get('student_id')}")
+                st.write(f"🆔 **학번:** {mentor_id}")
                 st.write(f"⏰ **가능 시간대:** {', '.join(mentor.get('available_times', []))}")
                 st.write(f"💬 **자기소개:** {mentor.get('bio')}")
                 
-                if mentor.get("student_id") == st.session_state.student_id:
-                    st.button("나의 프로필입니다", disabled=True, key=f"self_{mentor.get('student_id')}")
+                if mentor_id == st.session_state.student_id:
+                    st.button("나의 프로필입니다", disabled=True, key=f"self_{mentor_id}")
+                
+                # 💡 [버그 해결 핵심 코드 2] 이미 신청했거나 현재 매칭 진행 중인 멘토라면 버튼을 잠금 처리
+                elif mentor_id in already_applied_mentor_ids:
+                    st.button("🔒 이미 신청했거나 진행 중인 멘토입니다", disabled=True, key=f"already_{mentor_id}")
+                
                 else:
-                    if st.button(f"👉 {mentor.get('name')} 멘토에게 신청하기", key=f"req_{mentor.get('student_id')}"):
+                    if st.button(f"👉 {mentor.get('name')} 멘토에게 신청하기", key=f"req_{mentor_id}"):
                         with st.spinner("신청서 전송 중..."):
                             try:
                                 match_data = {
                                     "mentee_id": st.session_state.student_id,
-                                    "mentor_id": mentor.get("student_id"),
+                                    "mentor_id": mentor_id,
                                     "status": "대기중"
                                 }
                                 supabase.table("matches").insert(match_data).execute()
-                                st.success(f"🎉 {mentor.get('name')} 멘토에게 멘토링 신청이 완료되었습니다! 수락을 기다려주세요.")
+                                st.success(f"🎉 {mentor.get('name')} 멘토에게 멘토링 신청이 완료되었습니다!")
+                                st.rerun() # 신청 즉시 버튼 상태를 업데이트하기 위해 화면 새로고침
                             except Exception as e:
                                 st.error(f"신청 실패: {e}")
 
