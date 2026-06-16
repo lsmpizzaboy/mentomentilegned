@@ -87,7 +87,7 @@ try:
     my_mentors_res = supabase.table("matches").select("*").eq("mentee_id", st.session_state.student_id).eq("status", "수락됨").execute()
     my_mentors = my_mentors_res.data
     
-  profiles_res = supabase.table("profiles").select("*").execute()
+    profiles_res = supabase.table("profiles").select("*").execute()
     all_profiles = profiles_res.data  # 딕셔너리 대신 전체 리스트로 저장
     
     if not my_mentors:
