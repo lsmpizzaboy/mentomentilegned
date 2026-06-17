@@ -17,7 +17,7 @@ if "logged_in" not in st.session_state or not st.session_state.logged_in:
     st.warning("🔒 로그인이 필요합니다.")
     st.stop()
 
-render_global_notification_center(supabase)
+
 
 # ==========================================
 # [채팅방 화면 모드]
