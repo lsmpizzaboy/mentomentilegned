@@ -29,8 +29,6 @@ if "current_post" in st.session_state:
         except:
             pass
 
-# 업데이트가 끝난 '후에' 알림창을 불러와야 즉시 알림이 사라집니다.
-render_global_notification_center(supabase)
 
 # ==========================================
 # 💡 [최적화] DB 호출 제거: 캐시 메모리에서 프로필 가져와 딕셔너리 빌드
