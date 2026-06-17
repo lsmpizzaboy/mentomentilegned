@@ -1,18 +1,13 @@
 import streamlit as st
 
-# 💡 [최적화 핵심] 프로필 데이터 캐싱 함수
-# @st.cache_data(ttl=60)은 "이 함수가 불러온 결과값을 60초 동안 메모리에 저장(캐시)해둬!"라는 뜻입니다.
-# _supabase처럼 앞에 언더바(_)를 붙이면, 스트림릿이 캐시할 때 이 변수는 무시해서 에러가 나지 않습니다.
 @st.cache_data(ttl=60)
 def get_cached_profiles(_supabase):
     try:
-        # select("*")를 써도 캐싱 덕분에 DB에 부담이 전혀 가지 않습니다.
         res = _supabase.table("profiles").select("*").execute()
         return res.data
     except Exception:
         return []
 
-# 기존 통합 알림 센터 함수 (버그 우회 적용 버전)
 def render_global_notification_center(supabase):
     st.sidebar.markdown("---") 
     
@@ -23,10 +18,9 @@ def render_global_notification_center(supabase):
         mentor_req = supabase.table("matches").select("id, mentee_id").eq("mentor_id", student_id).eq("status", "대기중").execute()
         pending_matches = mentor_req.data
         
-        # [B] 안 읽은 채팅 (or_ 에러 완벽 우회)
+        # [B] 안 읽은 채팅
         res1 = supabase.table("matches").select("id").eq("mentor_id", student_id).execute()
         res2 = supabase.table("matches").select("id").eq("mentee_id", student_id).execute()
-        
         my_match_ids = [m["id"] for m in res1.data] + [m["id"] for m in res2.data]
         
         unread_chats = []
@@ -34,14 +28,15 @@ def render_global_notification_center(supabase):
             chat_res = supabase.table("chat_messages").select("*").in_("match_id", my_match_ids).eq("is_read", False).neq("sender_id", student_id).execute()
             unread_chats = chat_res.data
             
-      # [C] QnA 댓글
+        # [C] QnA 댓글
         my_posts_res = supabase.table("qna_board").select("id, title").eq("author_id", student_id).execute()
         my_post_ids = [p["id"] for p in my_posts_res.data]
         
         recent_comments = []
         if my_post_ids:
-            comments_res = supabase.table("qna_comments").select("*").in_("post_id", my_post_ids).order("created_at", desc=True).limit(5).execute()
+            comments_res = supabase.table("qna_comments").select("*").in_("post_id", my_post_ids).eq("is_read", False).order("created_at", desc=True).execute()
             recent_comments = comments_res.data
+
         total_notifications = len(pending_matches) + len(unread_chats) + len(recent_comments)
         badge = f" 🔴 ({total_notifications})" if total_notifications > 0 else ""
         
@@ -50,11 +45,23 @@ def render_global_notification_center(supabase):
             
             if total_notifications == 0:
                 st.caption("새로운 알림이 없습니다. 아주 평화롭네요! ✨")
-                
+            else:
+                # 💡 [새로운 기능] 클릭 한 번에 알림을 싹 지워주는 청소 버튼!
+                if st.button("🧹 새 알림 모두 확인(지우기)", use_container_width=True):
+                    # 1. 내 글에 달린 안 읽은 QnA 댓글 모두 읽음 처리
+                    if my_post_ids:
+                        supabase.table("qna_comments").update({"is_read": True}).in_("post_id", my_post_ids).eq("is_read", False).execute()
+                    # 2. 내게 온 안 읽은 채팅 모두 읽음 처리
+                    if my_match_ids:
+                        supabase.table("chat_messages").update({"is_read": True}).in_("match_id", my_match_ids).neq("sender_id", student_id).eq("is_read", False).execute()
+                    
+                    st.rerun()
+
             if pending_matches:
                 st.markdown("**🤝 멘토링 요청**")
                 for m in pending_matches:
-                    st.info(f"🙋‍♂️ `{m['mentee_id']}` 학생이 멘토링 신청을 보냈습니다! [매칭 시스템] 메뉴를 확인하세요.")
+                    st.info(f"🙋‍♂️ `{m['mentee_id']}` 학생이 멘토링 신청을 보냈습니다!")
+                st.caption("※ 매칭 요청은 [매칭 시스템]에서 수락/거절해야 지워집니다.")
             
             if unread_chats:
                 st.markdown("**💬 안 읽은 메시지**")
@@ -62,11 +69,11 @@ def render_global_notification_center(supabase):
                 st.warning(f"현재 답변을 기다리는 대화방이 {len(unique_match_ids)}개 있습니다.")
                 
             if recent_comments:
-                st.markdown("**💡 내 질문에 달린 댓글**")
+                st.markdown("**💡 내 질문에 달린 새 댓글**")
                 post_title_dict = {p["id"]: p["title"] for p in my_posts_res.data}
                 for c in recent_comments:
                     p_title = post_title_dict.get(c["post_id"], "내 질문")
-                    st.caption(f"📌 '{p_title}' 글에 새로운 답변이 등록되었습니다.")
+                    st.caption(f"📌 '{p_title}' 글")
                     st.write(f"👉 {c['comment']}")
 
     except Exception as e:
