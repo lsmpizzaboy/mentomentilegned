@@ -3,8 +3,7 @@ from supabase import create_client
 import base64
 # 💡 [최적화] 캐싱 함수 추가 불러오기
 from utils import render_global_notification_center, get_cached_profiles
-from utils import manage_page_state
-manage_page_state("1_프로필")
+
 
 # 1. 수파베이스 클라이언트 초기화
 try:
