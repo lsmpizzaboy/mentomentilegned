@@ -1,7 +1,8 @@
 import streamlit as st
 from supabase import create_client
 import base64
-from utils import render_global_notification_center
+# 💡 [최적화] 캐싱 함수 함께 불러오기
+from utils import render_global_notification_center, get_cached_profiles
 
 # 1. 수파베이스 클라이언트 초기화
 try:
@@ -17,12 +18,12 @@ if "logged_in" not in st.session_state or not st.session_state.logged_in:
     st.stop()
 
 render_global_notification_center(supabase)
-# 프로필 정보 가져오기
-try:
-    profiles_res = supabase.table("profiles").select("student_id, name").execute()
-    profile_dict = {p["student_id"]: p["name"] for p in profiles_res.data}
-except:
-    profile_dict = {}
+
+# ==========================================
+# 💡 [최적화] DB 호출 제거: 캐시 메모리에서 프로필 가져와 딕셔너리 빌드 (0.001초)
+# ==========================================
+all_profiles = get_cached_profiles(supabase)
+profile_dict = {p["student_id"]: p["name"] for p in all_profiles}
 
 # ==========================================
 # 🔍 [상세 보기 화면 모드]
@@ -31,27 +32,23 @@ if "current_post" in st.session_state:
     post = st.session_state.current_post
     author_name = profile_dict.get(post["author_id"], "알 수 없는 사용자")
     
-    # 상단 버튼 영역 (뒤로가기 & 삭제)
     col_btn1, col_btn2 = st.columns([4, 1])
     with col_btn1:
         if st.button("◀ 목록으로 돌아가기"):
             del st.session_state.current_post
             st.rerun()
     with col_btn2:
-        # 💡 [새로운 기능 1] 내가 작성한 글일 경우에만 '삭제' 버튼 표시
         if post["author_id"] == st.session_state.student_id:
             if st.button("🗑️ 글 삭제하기", type="primary", use_container_width=True):
-                # 데이터베이스에서 해당 게시글 삭제 (댓글도 자동 삭제됨)
                 supabase.table("qna_board").delete().eq("id", post["id"]).execute()
                 st.success("게시글이 성공적으로 삭제되었습니다.")
-                del st.session_state.current_post # 세션 지우고 목록으로!
+                del st.session_state.current_post
                 st.rerun()
         
     st.title(f"📌 {post['title']}")
     st.caption(f"👤 작성자: {author_name} | 🕒 작성일: {post['created_at'][:10]}")
     st.markdown("---")
     
-    # 본문 내용 및 이미지 출력
     st.write(post["content"])
     if post.get("image_data"):
         img_base64 = post["image_data"].replace("DATA_IMAGE:", "")
@@ -60,7 +57,6 @@ if "current_post" in st.session_state:
     st.markdown("---")
     st.subheader("💬 댓글")
     
-    # 댓글 가져오기
     comments_res = supabase.table("qna_comments").select("*").eq("post_id", post["id"]).order("created_at", desc=False).execute()
     comments = comments_res.data
     
@@ -71,7 +67,6 @@ if "current_post" in st.session_state:
             c_author_name = profile_dict.get(c["author_id"], "알 수 없는 사용자")
             st.markdown(f"- **{c_author_name}**: {c['comment']}")
             
-            # 댓글 이미지 출력 (250px)
             if c.get("image_data"):
                 c_img_base64 = c["image_data"].replace("DATA_IMAGE:", "")
                 st.image(f"data:image/png;base64,{c_img_base64}", width=250)
@@ -133,7 +128,6 @@ with st.expander("📝 새로운 질문 작성하기"):
 
 st.markdown("---")
 
-# 💡 [새로운 기능 2] 실시간 제목 검색창 추가
 search_query = st.text_input("🔍 질문 제목 검색", placeholder="찾고 싶은 질문의 제목을 입력해 보세요...")
 
 st.subheader("📋 질문 목록")
@@ -148,7 +142,6 @@ try:
         pid = c["post_id"]
         comment_counts[pid] = comment_counts.get(pid, 0) + 1
         
-    # 검색어가 있으면 제목과 비교해서 필터링 (대소문자 구분 없이)
     if search_query:
         filtered_posts = [p for p in posts if search_query.lower() in p["title"].lower()]
     else:
