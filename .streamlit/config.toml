@@ -1,6 +1,6 @@
 [theme]
-primaryColor = "#4F46E5"          # 핵심 강조색 (버튼, 포커스 등 - 인디고 블루)
-backgroundColor = "#0F172A"      # 메인 배경색 (어두운 모드 기준 다크 네이비)
-secondaryBackgroundColor = "#1E293B" # 사이드바 및 박스 배경색
-textColor = "#F8FAFC"            # 기본 글자 색상
-font = "sans serif"              # 폰트 스타일
+primaryColor = "#15803D"         # 핵심 강조색 ( 차분한 숲속 초록색)
+backgroundColor = "#FDFBF7"      # 메인 배경색 (따뜻한 아이보리/베이지)
+secondaryBackgroundColor = "#F4F1EA" # 사이드바 및 박스 배경색 (스콘 색상)
+textColor = "#292524"            # 기본 글자 색상 (따뜻한 브라운 블랙)
+font = "sans serif"
