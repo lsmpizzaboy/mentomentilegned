@@ -50,7 +50,7 @@ if "current_chat_match" in st.session_state:
                 # 💡 [기능 2] 만약 메시지가 이미지 데이터라면 이미지로 렌더링
                 if msg["message"].startswith("DATA_IMAGE:"):
                     img_base64 = msg["message"].replace("DATA_IMAGE:", "")
-                    st.image(f"data:image/png;base64,{img_base64}", use_container_width=True)
+                    st.image(f"data:image/png;base64,{img_base64}", width=350)
                 else:
                     st.write(msg["message"])
                 
