@@ -1,6 +1,7 @@
 import streamlit as st
 from supabase import create_client
 import base64
+from utils import render_global_notification_center
 
 # 1. 수파베이스 클라이언트 초기화
 try:
@@ -15,6 +16,7 @@ if "logged_in" not in st.session_state or not st.session_state.logged_in:
     st.warning("🔒 로그인이 필요한 서비스입니다.")
     st.stop()
 
+render_global_notification_center(supabase)
 # 프로필 정보 가져오기
 try:
     profiles_res = supabase.table("profiles").select("student_id, name").execute()
