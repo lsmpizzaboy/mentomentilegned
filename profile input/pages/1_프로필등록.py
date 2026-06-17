@@ -112,9 +112,9 @@ else:
             st.metric(label="🔥 활동 중인 총 멘토", value=f"{total_mentors}명")
         with col_m2:
             # 이제 매칭이 진짜 수락되어 성사되었을 때만 집계됩니다!
-            st.metric(label="🤝 오늘 성사된 매칭", value=f"{today_matches}건", delta="진짜 연결된 커플 수")
+            st.metric(label="🤝 오늘 성사된 매칭", value=f"{today_matches}건")
         with col_m3:
-            st.metric(label="💬 오늘 올라온 QnA", value=f"{today_qnas}개", delta="답변을 기다려요", delta_color="normal")
+            st.metric(label="💬 오늘 올라온 QnA", value=f"{today_qnas}개")
 
     st.markdown("---")
 
