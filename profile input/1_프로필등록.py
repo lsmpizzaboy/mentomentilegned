@@ -115,7 +115,6 @@ else:
     subject_list = ["국어", "수학", "영어", "과학", "사회", "파이썬", "C언어", "기타"]
     time_list = ["평일 방과후", "평일 저녁", "주말 오전", "주말 오후", "주말 저녁"]
     
-    # 💡 [핵심 변경] 라디오 버튼 대신 탭(Tabs)을 사용하여 화면을 완전히 분리!
     tab_mentor, tab_mentee = st.tabs(["👨‍🏫 멘토 프로필 관리", "👩‍🎓 멘티 프로필 관리"])
     
     # ----------------------------------------
@@ -125,7 +124,6 @@ else:
         is_mentor_edit = mentor_profile is not None
         
         if is_mentor_edit:
-            # 💡 [새로운 기능] 나의 평균 별점 계산 및 표시
             try:
                 ratings_res = supabase.table("matches").select("rating").eq("mentor_id", st.session_state.student_id).not_.is_("rating", "null").execute()
                 ratings = [r["rating"] for r in ratings_res.data if r["rating"] is not None]
@@ -169,12 +167,22 @@ else:
                         st.success("🎉 멘토 프로필이 신규 등록되었습니다!")
                     st.rerun()
                     
-        # 💡 [새로운 기능] 프로필 삭제 버튼 (폼 바깥에 위치)
+        # 💡 [핵심 버그 수정 1] 멘토 삭제 방어 로직
         if is_mentor_edit:
-            if st.button("🗑️ 내 멘토 프로필 목록에서 내리기 (삭제)", type="primary", use_container_width=True):
-                supabase.table("profiles").delete().eq("student_id", st.session_state.student_id).eq("role", "멘토").execute()
-                st.success("멘토 프로필이 삭제되었습니다. 이제 매칭 명단에 나타나지 않습니다.")
-                st.rerun()
+            try:
+                # 현재 내가 멘토인 매칭 중 '대기중'이거나 '수락됨'인 상태가 있는지 확인
+                active_mentor_res = supabase.table("matches").select("id").eq("mentor_id", st.session_state.student_id).in_("status", ["대기중", "수락됨"]).execute()
+                active_mentor_matches = active_mentor_res.data
+            except:
+                active_mentor_matches = []
+                
+            if active_mentor_matches:
+                st.warning("⚠️ 현재 진행 중이거나 요청받은 멘토링이 있어 프로필을 삭제할 수 없습니다. 멘토링을 먼저 종료하거나 거절해 주세요.")
+            else:
+                if st.button("🗑️ 내 멘토 프로필 목록에서 내리기 (삭제)", type="primary", use_container_width=True):
+                    supabase.table("profiles").delete().eq("student_id", st.session_state.student_id).eq("role", "멘토").execute()
+                    st.success("멘토 프로필이 삭제되었습니다. 이제 매칭 명단에 나타나지 않습니다.")
+                    st.rerun()
 
     # ----------------------------------------
     # [2] 👩‍🎓 멘티 프로필 탭
@@ -207,7 +215,6 @@ else:
             
             st.write("---")
             st.subheader("📅 도움 요청 기한")
-            # 💡 [달력 에러 해결 유지] min_value=today 를 지워서 과거 날짜여도 충돌 안 나게 처리!
             date_range = st.date_input("도움이 필요한 기간을 선택해 주세요 (시작일과 종료일 클릭)", value=default_date)
             st.write("---")
             
@@ -238,9 +245,19 @@ else:
                         st.success("🎉 멘티 프로필이 신규 등록되었습니다!")
                     st.rerun()
 
-        # 💡 [새로운 기능] 프로필 삭제 버튼
+        # 💡 [핵심 버그 수정 2] 멘티 삭제 방어 로직
         if is_mentee_edit:
-            if st.button("🗑️ 내 멘티 프로필 목록에서 내리기 (삭제)", type="primary", use_container_width=True):
-                supabase.table("profiles").delete().eq("student_id", st.session_state.student_id).eq("role", "멘티").execute()
-                st.success("멘티 프로필이 삭제되었습니다.")
-                st.rerun()
+            try:
+                # 현재 내가 멘티인 매칭 중 '대기중'이거나 '수락됨'인 상태가 있는지 확인
+                active_mentee_res = supabase.table("matches").select("id").eq("mentee_id", st.session_state.student_id).in_("status", ["대기중", "수락됨"]).execute()
+                active_mentee_matches = active_mentee_res.data
+            except:
+                active_mentee_matches = []
+                
+            if active_mentee_matches:
+                st.warning("⚠️ 현재 진행 중이거나 신청해 둔 멘토링이 있어 프로필을 삭제할 수 없습니다. 멘토링을 먼저 종료해 주세요.")
+            else:
+                if st.button("🗑️ 내 멘티 프로필 목록에서 내리기 (삭제)", type="primary", use_container_width=True):
+                    supabase.table("profiles").delete().eq("student_id", st.session_state.student_id).eq("role", "멘티").execute()
+                    st.success("멘티 프로필이 삭제되었습니다.")
+                    st.rerun()
