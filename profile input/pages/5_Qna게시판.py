@@ -29,9 +29,21 @@ if "current_post" in st.session_state:
     post = st.session_state.current_post
     author_name = profile_dict.get(post["author_id"], "알 수 없는 사용자")
     
-    if st.button("◀ 목록으로 돌아가기"):
-        del st.session_state.current_post
-        st.rerun()
+    # 상단 버튼 영역 (뒤로가기 & 삭제)
+    col_btn1, col_btn2 = st.columns([4, 1])
+    with col_btn1:
+        if st.button("◀ 목록으로 돌아가기"):
+            del st.session_state.current_post
+            st.rerun()
+    with col_btn2:
+        # 💡 [새로운 기능 1] 내가 작성한 글일 경우에만 '삭제' 버튼 표시
+        if post["author_id"] == st.session_state.student_id:
+            if st.button("🗑️ 글 삭제하기", type="primary", use_container_width=True):
+                # 데이터베이스에서 해당 게시글 삭제 (댓글도 자동 삭제됨)
+                supabase.table("qna_board").delete().eq("id", post["id"]).execute()
+                st.success("게시글이 성공적으로 삭제되었습니다.")
+                del st.session_state.current_post # 세션 지우고 목록으로!
+                st.rerun()
         
     st.title(f"📌 {post['title']}")
     st.caption(f"👤 작성자: {author_name} | 🕒 작성일: {post['created_at'][:10]}")
@@ -57,21 +69,19 @@ if "current_post" in st.session_state:
             c_author_name = profile_dict.get(c["author_id"], "알 수 없는 사용자")
             st.markdown(f"- **{c_author_name}**: {c['comment']}")
             
-            # 💡 [새로운 기능] 댓글 이미지가 있다면 본문보다 작게(250px) 렌더링!
+            # 댓글 이미지 출력 (250px)
             if c.get("image_data"):
                 c_img_base64 = c["image_data"].replace("DATA_IMAGE:", "")
                 st.image(f"data:image/png;base64,{c_img_base64}", width=250)
             
     st.write("") 
     
-    # 💡 [새로운 기능] 폼 안에 사진 첨부 기능 추가
     with st.form(f"comment_form_{post['id']}", clear_on_submit=True):
         new_comment = st.text_input("새 댓글 남기기", placeholder="여기에 답변이나 의견을 입력하세요...")
         comment_image = st.file_uploader("사진 첨부 (선택사항)", type=["png", "jpg", "jpeg"], key=f"c_img_{post['id']}")
         submitted = st.form_submit_button("🚀 등록")
         
         if submitted:
-            # 글이나 사진 둘 중 하나라도 있으면 등록을 허용합니다!
             if new_comment or comment_image:
                 c_image_base64 = None
                 if comment_image:
@@ -120,7 +130,11 @@ with st.expander("📝 새로운 질문 작성하기"):
                 st.warning("제목과 내용을 모두 입력해 주세요.")
 
 st.markdown("---")
-st.subheader("📋 전체 질문 목록")
+
+# 💡 [새로운 기능 2] 실시간 제목 검색창 추가
+search_query = st.text_input("🔍 질문 제목 검색", placeholder="찾고 싶은 질문의 제목을 입력해 보세요...")
+
+st.subheader("📋 질문 목록")
 
 try:
     posts_res = supabase.table("qna_board").select("*").order("created_at", desc=True).execute()
@@ -132,10 +146,19 @@ try:
         pid = c["post_id"]
         comment_counts[pid] = comment_counts.get(pid, 0) + 1
         
-    if not posts:
-        st.info("아직 등록된 질문이 없습니다. 첫 번째 질문의 주인공이 되어보세요!")
+    # 검색어가 있으면 제목과 비교해서 필터링 (대소문자 구분 없이)
+    if search_query:
+        filtered_posts = [p for p in posts if search_query.lower() in p["title"].lower()]
     else:
-        for post in posts:
+        filtered_posts = posts
+        
+    if not filtered_posts:
+        if search_query:
+            st.info(f"'{search_query}'(으)로 검색된 질문이 없습니다.")
+        else:
+            st.info("아직 등록된 질문이 없습니다. 첫 번째 질문의 주인공이 되어보세요!")
+    else:
+        for post in filtered_posts:
             author_name = profile_dict.get(post["author_id"], "알 수 없는 사용자")
             ccount = comment_counts.get(post["id"], 0)
             
