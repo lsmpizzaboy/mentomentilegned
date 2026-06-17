@@ -1,7 +1,7 @@
 import streamlit as st
 from supabase import create_client
 import base64
-
+from utils import render_global_notification_center
 # 1. 수파베이스 클라이언트 초기화
 try:
     url = st.secrets["supabase"]["url"]
@@ -15,6 +15,7 @@ if "logged_in" not in st.session_state or not st.session_state.logged_in:
     st.warning("🔒 로그인이 필요합니다.")
     st.stop()
 
+render_global_notification_center(supabase)
 # ==========================================
 # [채팅방 화면 모드]
 # ==========================================
