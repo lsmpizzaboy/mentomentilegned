@@ -2,6 +2,14 @@ import streamlit as st
 from supabase import create_client
 import datetime
 
+# 기존의 밋밋한 텍스트 대신 가로로 정렬된 멋진 지표 상자 배치
+col1, col2, col3 = st.columns(3)
+with col1:
+    st.metric(label="🔥 전체 등록 멘토 수", value="24명", delta="+3명 (이번 주)")
+with col2:
+    st.metric(label="🤝 매칭 완료된 커플", value="18쌍", delta="현재 활발")
+with col3:
+    st.metric(label="💬 오늘 올라온 Q&A", value="7개", delta="-2개", delta_color="inverse")
 # 1. 수파베이스 클라이언트 초기화
 try:
     url = st.secrets["supabase"]["url"]
