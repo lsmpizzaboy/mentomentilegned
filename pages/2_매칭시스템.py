@@ -1,8 +1,7 @@
 import streamlit as st
 from supabase import create_client
 from utils import render_global_notification_center
-from utils import manage_page_state
-manage_page_state("1_프로필")
+
 
 try:
     url = st.secrets["supabase"]["url"]
