@@ -1,6 +1,6 @@
 import streamlit as st
 from supabase import create_client
-
+from utils import render_global_notification_center
 # 1. 수파베이스 클라이언트 초기화
 try:
     url = st.secrets["supabase"]["url"]
@@ -15,7 +15,8 @@ st.set_page_config(page_title="멘토-멘티 매칭 현황", page_icon="🤝", l
 if "logged_in" not in st.session_state or not st.session_state.logged_in:
     st.warning("🔒 로그인이 필요한 서비스입니다.")
     st.stop()
-
+    
+render_global_notification_center(supabase)
 
 # ( ... 이후 원래 있던 기존 본문 코드들 쭉 나열 ... )
 st.title("🤝 멘토-멘티 매칭 시스템")
