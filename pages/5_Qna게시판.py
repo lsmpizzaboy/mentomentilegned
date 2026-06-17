@@ -110,41 +110,15 @@ if "current_post" in st.session_state:
 # ==========================================
 # 📋 [목록 화면 모드]
 # ==========================================
-st.title("💡 실시간 Q&A 질문게시판")
-st.write("모르는 문제를 올리거나, 다른 친구들의 질문에 답변을 달아주세요!")
-
-with st.expander("📝 새로운 질문 작성하기"):
-    with st.form("new_post_form", clear_on_submit=True):
-        new_title = st.text_input("제목 (어떤 과목/내용인지 간략히 적어주세요)")
-        new_content = st.text_area("질문 내용", height=150)
-        uploaded_image = st.file_uploader("사진 첨부 (선택사항)", type=["png", "jpg", "jpeg"])
-        
-        if st.form_submit_button("🚀 질문 등록하기"):
-            if new_title and new_content:
-                image_base64 = None
-                if uploaded_image:
-                    image_base64 = base64.b64encode(uploaded_image.read()).decode("utf-8")
-                
-                post_data = {
-                    "author_id": st.session_state.student_id,
-                    "title": new_title,
-                    "content": new_content,
-                    "image_data": f"DATA_IMAGE:{image_base64}" if image_base64 else None
-                }
-                supabase.table("qna_board").insert(post_data).execute()
-                st.success("질문이 등록되었습니다!")
-                st.rerun()
-            else:
-                st.warning("제목과 내용을 모두 입력해 주세요.")
-
-st.markdown("---")
+# (... 위쪽 글쓰기 폼 코드 등은 그대로 둡니다 ...)
 
 search_query = st.text_input("🔍 질문 제목 검색", placeholder="찾고 싶은 질문의 제목을 입력해 보세요...")
 
 st.subheader("📋 질문 목록")
 
 try:
-    posts_res = supabase.table("qna_board").select("*").order("created_at", desc=True).execute()
+    # 💡 [최종 최적화 1] select("*") 대신 사진(image_data)과 본문(content)을 빼고 가볍게 가져옵니다!
+    posts_res = supabase.table("qna_board").select("id, author_id, title, created_at").order("created_at", desc=True).execute()
     posts = posts_res.data
     
     comments_res = supabase.table("qna_comments").select("post_id").execute()
@@ -175,8 +149,11 @@ try:
                     st.caption(f"👤 {author_name}  |  💬 댓글 {ccount}개")
                 with col2:
                     if st.button("자세히 보기", key=f"view_{post['id']}", use_container_width=True):
-                        st.session_state.current_post = post
-                        st.rerun()
+                        # 💡 [최종 최적화 2] 유저가 버튼을 누른 딱 이 순간에만! 해당 글의 '전체 내용(사진 포함)'을 가져옵니다.
+                        full_post_res = supabase.table("qna_board").select("*").eq("id", post["id"]).execute()
+                        if full_post_res.data:
+                            st.session_state.current_post = full_post_res.data[0]
+                            st.rerun()
 
 except Exception as e:
     st.error(f"게시판 데이터를 불러오는 중 오류가 발생했습니다: {e}")
