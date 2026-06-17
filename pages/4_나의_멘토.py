@@ -1,7 +1,9 @@
 import streamlit as st
 from supabase import create_client
 import base64
-from utils import render_global_notification_center
+# 💡 [최적화] 캐싱 함수 추가 불러오기
+from utils import render_global_notification_center, get_cached_profiles
+
 # 1. 수파베이스 클라이언트 초기화
 try:
     url = st.secrets["supabase"]["url"]
@@ -16,6 +18,7 @@ if "logged_in" not in st.session_state or not st.session_state.logged_in:
     st.stop()
 
 render_global_notification_center(supabase)
+
 # ==========================================
 # [채팅방 화면 모드]
 # ==========================================
@@ -44,7 +47,6 @@ if "current_chat_match" in st.session_state:
                 st.write(f"**{sender_label}**")
                 if msg["message"].startswith("DATA_IMAGE:"):
                     img_base64 = msg["message"].replace("DATA_IMAGE:", "")
-                    # 💡 [버그 해결] 멘티가 보거나 보낸 사진도 가로 350px로 절대 크기 고정!
                     st.image(f"data:image/png;base64,{img_base64}", width=350)
                 else:
                     st.write(msg["message"])
@@ -70,8 +72,8 @@ if "current_chat_match" in st.session_state:
 st.title("👩‍🎓 나의 멘토 연락망")
 
 try:
-    profiles_res = supabase.table("profiles").select("*").execute()
-    all_profiles = profiles_res.data
+    # 💡 [최적화] DB 통신 제거하고 메모리 캐시 불러오기
+    all_profiles = get_cached_profiles(supabase)
     
     # 1. 진행 중인 멘토링
     st.subheader("🟢 진행 중인 멘토링")
@@ -82,8 +84,8 @@ try:
         st.info("현재 진행 중인 멘토가 없습니다.")
     else:
         for match in my_mentors:
-            mentor_id = match["mentor_id"]
-            mentor_profile = next((p for p in all_profiles if p["student_id"] == mentor_id and p["role"] == "멘토"), {})
+            m_id = match["mentor_id"]
+            mentor_profile = next((p for p in all_profiles if p["student_id"] == m_id and p["role"] == "멘토"), {})
             mentor_name = mentor_profile.get("name", "알 수 없는 멘토")
             
             unread_res = supabase.table("chat_messages").select("id", count="exact").eq("match_id", match["id"]).eq("is_read", False).neq("sender_id", st.session_state.student_id).execute()
@@ -92,7 +94,7 @@ try:
                 col1, col2 = st.columns([3, 1])
                 with col1:
                     alert = f" 🔴 **새 메시지 {unread_res.count}건**" if unread_res.count > 0 else ""
-                    st.write(f"**👨‍🏫 멘토:** {mentor_name} ({mentor_id}) {alert}")
+                    st.write(f"**👨‍🏫 멘토:** {mentor_name} ({m_id}) {alert}")
                     with st.expander("🔍 이 멘토의 프로필 상세보기"):
                         st.write(f"📚 **자신 있는 과목:** {', '.join(mentor_profile.get('subjects', []))}")
                         st.write(f"⏰ **멘토링 시간대:** {', '.join(mentor_profile.get('available_times', []))}")
@@ -113,8 +115,8 @@ try:
         st.info("평가를 기다리는 멘토링이 없습니다.")
     else:
         for match in needs_rating:
-            mentor_id = match["mentor_id"]
-            mentor_profile = next((p for p in all_profiles if p["student_id"] == mentor_id and p["role"] == "멘토"), {})
+            m_id = match["mentor_id"]
+            mentor_profile = next((p for p in all_profiles if p["student_id"] == m_id and p["role"] == "멘토"), {})
             mentor_name = mentor_profile.get("name", "알 수 없는 멘토")
             
             with st.container(border=True):
