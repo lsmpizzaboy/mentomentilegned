@@ -10,9 +10,12 @@ def render_global_notification_center(supabase):
         mentor_req = supabase.table("matches").select("id, mentee_id").eq("mentor_id", student_id).eq("status", "대기중").execute()
         pending_matches = mentor_req.data
         
-        # [B] 안 읽은 채팅
-        my_matches_res = supabase.table("matches").select("id").or_(f"mentor_id.eq.{student_id},mentee_id.eq.{student_id}").execute()
-        my_match_ids = [m["id"] for m in my_matches_res.data]
+        # [B] 안 읽은 채팅 (💡 or_ 에러 완벽 우회: 멘토일 때와 멘티일 때를 따로 검색해서 합칩니다!)
+        res1 = supabase.table("matches").select("id").eq("mentor_id", student_id).execute()
+        res2 = supabase.table("matches").select("id").eq("mentee_id", student_id).execute()
+        
+        # 두 개의 검색 결과를 하나의 리스트로 합치기
+        my_match_ids = [m["id"] for m in res1.data] + [m["id"] for m in res2.data]
         
         unread_chats = []
         if my_match_ids:
@@ -56,4 +59,4 @@ def render_global_notification_center(supabase):
                     st.write(f"👉 {c['comment']}")
 
     except Exception as e:
-        st.sidebar.error(f"진짜 에러 원인: {e}")
+        st.sidebar.caption("알림을 불러오는 중 오류가 발생했습니다.")
