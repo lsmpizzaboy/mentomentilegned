@@ -43,7 +43,8 @@ if "current_chat_match" in st.session_state:
                 st.write(f"**{sender_label}**")
                 if msg["message"].startswith("DATA_IMAGE:"):
                     img_base64 = msg["message"].replace("DATA_IMAGE:", "")
-                    st.image(f"data:image/png;base64,{img_base64}", use_container_width=True)
+                    # 💡 [버그 해결] 멘티가 보거나 보낸 사진도 가로 350px로 절대 크기 고정!
+                    st.image(f"data:image/png;base64,{img_base64}", width=350)
                 else:
                     st.write(msg["message"])
                 
@@ -63,7 +64,7 @@ if "current_chat_match" in st.session_state:
     st.stop()
 
 # ==========================================
-# [목록 화면 모드]
+# [목록 화면 모드] 기본 화면
 # ==========================================
 st.title("👩‍🎓 나의 멘토 연락망")
 
@@ -91,11 +92,12 @@ try:
                 with col1:
                     alert = f" 🔴 **새 메시지 {unread_res.count}건**" if unread_res.count > 0 else ""
                     st.write(f"**👨‍🏫 멘토:** {mentor_name} ({mentor_id}) {alert}")
-                    with st.expander("🔍 프로필 보기"):
-                        st.write(f"📚 **과목:** {', '.join(mentor_profile.get('subjects', []))}")
-                        st.write(f"💬 **소개:** {mentor_profile.get('bio', '')}")
+                    with st.expander("🔍 이 멘토의 프로필 상세보기"):
+                        st.write(f"📚 **자신 있는 과목:** {', '.join(mentor_profile.get('subjects', []))}")
+                        st.write(f"⏰ **멘토링 시간대:** {', '.join(mentor_profile.get('available_times', []))}")
+                        st.write(f"💬 **멘토 소개:** {mentor_profile.get('bio', '')}")
                 with col2:
-                    if st.button("💬 질문하기", key=f"chat_{match['id']}", use_container_width=True):
+                    if st.button("💬 질문하러 가기", key=f"chat_{match['id']}", use_container_width=True):
                         st.session_state.current_chat_match = {"id": match["id"], "partner_name": mentor_name}
                         st.rerun()
 
@@ -104,8 +106,6 @@ try:
     # 2. 종료된 멘토링 (별점 평가)
     st.subheader("⭐ 종료된 멘토링 리뷰 남기기")
     ended_res = supabase.table("matches").select("*").eq("mentee_id", st.session_state.student_id).eq("status", "종료됨").execute()
-    
-    # 아직 별점(rating)을 주지 않은 내역만 필터링
     needs_rating = [m for m in ended_res.data if m.get("rating") is None]
     
     if not needs_rating:
@@ -119,7 +119,6 @@ try:
             with st.container(border=True):
                 st.write(f"**👨‍🏫 {mentor_name}** 멘토님과의 멘토링이 종료되었습니다. 어떠셨나요?")
                 
-                # 가시성 높은 라디오 버튼 (5점 만점)
                 rating_options = {
                     "⭐⭐⭐⭐⭐ (5점 - 최고!)": 5,
                     "⭐⭐⭐⭐ (4점 - 좋아요)": 4,
@@ -127,7 +126,6 @@ try:
                     "⭐⭐ (2점 - 아쉬움)": 2,
                     "⭐ (1점 - 별로)": 1
                 }
-                
                 selected_star = st.radio("별점을 선택해주세요:", list(rating_options.keys()), horizontal=True, key=f"star_{match['id']}")
                 
                 if st.button("🌟 별점 등록완료", key=f"rate_btn_{match['id']}"):
