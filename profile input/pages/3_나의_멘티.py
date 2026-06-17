@@ -14,7 +14,23 @@ except Exception as e:
 if "logged_in" not in st.session_state or not st.session_state.logged_in:
     st.warning("🔒 로그인이 필요합니다.")
     st.stop()
+    
+import streamlit as st
+from supabase import create_client
+import base64
+# 💡 1. 방금 밖에서 만든 utils.py에서 알림창 함수를 수입(import)해옵니다!
+from utils import render_global_notification_center 
 
+# ( ... 수파베이스 연결 코드 ... )
+
+if "logged_in" not in st.session_state or not st.session_state.logged_in:
+    st.warning("🔒 로그인이 필요합니다.")
+    st.stop()
+
+# 💡 2. 로그인 확인이 끝나자마자 알림창 함수를 한 번 실행시킵니다!
+render_global_notification_center(supabase)
+
+# ( ... 이후 원래 있던 기존 본문 코드들 쭉 나열 ... )
 # ==========================================
 # [채팅방 화면 모드]
 # ==========================================
