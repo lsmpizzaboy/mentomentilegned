@@ -2,8 +2,7 @@ import streamlit as st
 from supabase import create_client
 import base64
 from utils import render_global_notification_center, get_cached_profiles
-from utils import manage_page_state
-manage_page_state("1_프로필")
+
 # 1. 수파베이스 클라이언트 초기화
 try:
     url = st.secrets["supabase"]["url"]
