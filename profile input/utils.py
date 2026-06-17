@@ -56,4 +56,4 @@ def render_global_notification_center(supabase):
                     st.write(f"👉 {c['comment']}")
 
     except Exception as e:
-        st.sidebar.caption("알림을 불러오는 중 오류가 발생했습니다.")
+        st.sidebar.error(f"진짜 에러 원인: {e}")
