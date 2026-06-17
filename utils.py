@@ -34,7 +34,7 @@ def render_global_notification_center(supabase):
             chat_res = supabase.table("chat_messages").select("*").in_("match_id", my_match_ids).eq("is_read", False).neq("sender_id", student_id).execute()
             unread_chats = chat_res.data
             
-        # [C] QnA 댓글
+      # [C] QnA 댓글
         my_posts_res = supabase.table("qna_board").select("id, title").eq("author_id", student_id).execute()
         my_post_ids = [p["id"] for p in my_posts_res.data]
         
@@ -42,7 +42,6 @@ def render_global_notification_center(supabase):
         if my_post_ids:
             comments_res = supabase.table("qna_comments").select("*").in_("post_id", my_post_ids).order("created_at", desc=True).limit(5).execute()
             recent_comments = comments_res.data
-
         total_notifications = len(pending_matches) + len(unread_chats) + len(recent_comments)
         badge = f" 🔴 ({total_notifications})" if total_notifications > 0 else ""
         
