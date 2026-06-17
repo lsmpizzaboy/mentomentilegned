@@ -20,9 +20,8 @@ if "logged_in" not in st.session_state:
     st.session_state.name = None
 
 def logout():
-    st.session_state.logged_in = False
-    st.session_state.student_id = None
-    st.session_state.name = None
+    # 세션에 남아있는 채팅방, 게시판 등 모든 방문 기록을 싹 비워줍니다 (대청소)
+    st.session_state.clear() 
     st.rerun()
 
 # ==========================================
