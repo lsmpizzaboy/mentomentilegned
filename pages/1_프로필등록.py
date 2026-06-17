@@ -2,8 +2,7 @@ import streamlit as st
 from supabase import create_client
 import datetime
 from datetime import timezone, timedelta
-from utils import manage_page_state
-manage_page_state("1_프로필")
+
 # 1. 수파베이스 클라이언트 초기화
 try:
     url = st.secrets["supabase"]["url"]
