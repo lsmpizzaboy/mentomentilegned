@@ -1,5 +1,18 @@
 import streamlit as st
 
+# 💡 [최적화 핵심] 프로필 데이터 캐싱 함수
+# @st.cache_data(ttl=60)은 "이 함수가 불러온 결과값을 60초 동안 메모리에 저장(캐시)해둬!"라는 뜻입니다.
+# _supabase처럼 앞에 언더바(_)를 붙이면, 스트림릿이 캐시할 때 이 변수는 무시해서 에러가 나지 않습니다.
+@st.cache_data(ttl=60)
+def get_cached_profiles(_supabase):
+    try:
+        # select("*")를 써도 캐싱 덕분에 DB에 부담이 전혀 가지 않습니다.
+        res = _supabase.table("profiles").select("*").execute()
+        return res.data
+    except Exception:
+        return []
+
+# 기존 통합 알림 센터 함수 (버그 우회 적용 버전)
 def render_global_notification_center(supabase):
     st.sidebar.markdown("---") 
     
@@ -10,11 +23,10 @@ def render_global_notification_center(supabase):
         mentor_req = supabase.table("matches").select("id, mentee_id").eq("mentor_id", student_id).eq("status", "대기중").execute()
         pending_matches = mentor_req.data
         
-        # [B] 안 읽은 채팅 (💡 or_ 에러 완벽 우회: 멘토일 때와 멘티일 때를 따로 검색해서 합칩니다!)
+        # [B] 안 읽은 채팅 (or_ 에러 완벽 우회)
         res1 = supabase.table("matches").select("id").eq("mentor_id", student_id).execute()
         res2 = supabase.table("matches").select("id").eq("mentee_id", student_id).execute()
         
-        # 두 개의 검색 결과를 하나의 리스트로 합치기
         my_match_ids = [m["id"] for m in res1.data] + [m["id"] for m in res2.data]
         
         unread_chats = []
