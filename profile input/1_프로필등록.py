@@ -163,7 +163,7 @@ else:
             today = datetime.date.today()
             st.write("---")
             st.subheader("📅 도움 요청 기한")
-            date_range = st.date_input("도움이 필요한 기간을 선택해 주세요 (시작일과 종료일 클릭)", value=default_date, min_value=today)
+            date_range = st.date_input("도움이 필요한 기간을 선택해 주세요 (시작일과 종료일 클릭)", value=default_date)
             st.write("---")
             
         valid_times = [t for t in default_times if t in time_list]
