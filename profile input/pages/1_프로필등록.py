@@ -84,7 +84,6 @@ else:
     st.title("🏫 교내 멘토링 라운지")
     st.write(f"환영합니다, **{st.session_state.name}**님! 현재 우리 학교의 멘토링 현황입니다.")
     
-    # 💡 [새로운 기능] 실시간 데이터베이스 통계 긁어오기
     # 한국 시간(KST) 기준으로 오늘의 시작(00:00) 시간 구하기
     KST = timezone(timedelta(hours=9))
     today_kst_str = datetime.datetime.now(KST).strftime("%Y-%m-%d")
@@ -95,8 +94,8 @@ else:
         mentor_res = supabase.table("profiles").select("student_id", count="exact").eq("role", "멘토").execute()
         total_mentors = mentor_res.count if mentor_res.count else 0
         
-        # 2. 오늘 하루동안 새롭게 신청/성사된 매칭 수 (오늘 날짜 이후 생성된 데이터)
-        match_res = supabase.table("matches").select("id", count="exact").gte("created_at", today_start_iso).execute()
+        # 2. 💡 [논리 버그 완벽 해결!] 오늘 매칭 요청 중 상태가 '수락됨'인 진짜 성사된 커플만 집계!
+        match_res = supabase.table("matches").select("id", count="exact").gte("created_at", today_start_iso).eq("status", "수락됨").execute()
         today_matches = match_res.count if match_res.count else 0
         
         # 3. 오늘 하루동안 올라온 QnA 질문 수
@@ -106,21 +105,21 @@ else:
         total_mentors, today_matches, today_qnas = 0, 0, 0
 
     # 📊 대시보드 UI (st.metric 활용)
-    # 배경을 살짝 감싸주기 위해 컨테이너 사용
     with st.container(border=True):
         st.markdown("#### 📡 실시간 플랫폼 현황")
         col_m1, col_m2, col_m3 = st.columns(3)
         with col_m1:
             st.metric(label="🔥 활동 중인 총 멘토", value=f"{total_mentors}명")
         with col_m2:
-            st.metric(label="🤝 오늘 성사된 매칭", value=f"{today_matches}건", delta="오늘 새롭게 연결됨!")
+            # 이제 매칭이 진짜 수락되어 성사되었을 때만 집계됩니다!
+            st.metric(label="🤝 오늘 성사된 매칭", value=f"{today_matches}건", delta="진짜 연결된 커플 수")
         with col_m3:
             st.metric(label="💬 오늘 올라온 QnA", value=f"{today_qnas}개", delta="답변을 기다려요", delta_color="normal")
 
     st.markdown("---")
 
     # ==========================================
-    # 기존 프로필 관리 기능 (내용 동일)
+    # 기존 프로필 관리 기능 (나머지 동일)
     # ==========================================
     st.subheader("📝 나의 프로필 관리")
     
@@ -146,7 +145,7 @@ else:
         else:
             st.info("👩‍🎓 멘티 프로필: **미등록**")
             
-    subject_list = ["국어", "수학", "영어", "과학", "사회", "파이썬", "C언어", "기타"]
+    subject_list = ["국어", "수학", "영어", "과탐", "사탐", "수행평가", "기타"]
     time_list = ["평일 방과후", "평일 저녁", "주말 오전", "주말 오후", "주말 저녁"]
     
     tab_mentor, tab_mentee = st.tabs(["👨‍🏫 멘토 프로필 관리", "👩‍🎓 멘티 프로필 관리"])
