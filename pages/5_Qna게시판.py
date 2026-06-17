@@ -32,6 +32,10 @@ if "current_post" in st.session_state:
     post = st.session_state.current_post
     author_name = profile_dict.get(post["author_id"], "알 수 없는 사용자")
     
+    # 💡 [새로운 기능] 내가 쓴 글을 조회할 때, 아직 안 읽은 댓글이 있다면 모두 '읽음' 처리!
+    if post["author_id"] == st.session_state.student_id:
+        supabase.table("qna_comments").update({"is_read": True}).eq("post_id", post["id"]).eq("is_read", False).execute()
+
     col_btn1, col_btn2 = st.columns([4, 1])
     with col_btn1:
         if st.button("◀ 목록으로 돌아가기"):
