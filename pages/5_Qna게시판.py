@@ -1,7 +1,6 @@
 import streamlit as st
 from supabase import create_client
 import base64
-# 💡 [최적화] 캐싱 함수 함께 불러오기
 from utils import render_global_notification_center, get_cached_profiles
 
 # 1. 수파베이스 클라이언트 초기화
@@ -14,13 +13,27 @@ except Exception as e:
     st.stop()
 
 if "logged_in" not in st.session_state or not st.session_state.logged_in:
-    st.warning("🔒 로그인이 필요한 서비스입니다.")
+    st.warning("🔒 로그인이 필요합니다.")
     st.stop()
 
+# ==========================================
+# 💡 [버그 완벽 해결] 알림창 그리기 전에 '읽음' 처리 먼저 하기!
+# ==========================================
+if "current_post" in st.session_state:
+    post = st.session_state.current_post
+    # 내가 쓴 글을 열고 있는 상태라면
+    if post["author_id"] == st.session_state.student_id:
+        try:
+            # 아직 안 읽은 댓글(is_read=False)을 모조리 읽음(True)으로 바꿉니다.
+            supabase.table("qna_comments").update({"is_read": True}).eq("post_id", post["id"]).eq("is_read", False).execute()
+        except:
+            pass
+
+# 업데이트가 끝난 '후에' 알림창을 불러와야 즉시 알림이 사라집니다.
 render_global_notification_center(supabase)
 
 # ==========================================
-# 💡 [최적화] DB 호출 제거: 캐시 메모리에서 프로필 가져와 딕셔너리 빌드 (0.001초)
+# 💡 [최적화] DB 호출 제거: 캐시 메모리에서 프로필 가져와 딕셔너리 빌드
 # ==========================================
 all_profiles = get_cached_profiles(supabase)
 profile_dict = {p["student_id"]: p["name"] for p in all_profiles}
@@ -32,10 +45,6 @@ if "current_post" in st.session_state:
     post = st.session_state.current_post
     author_name = profile_dict.get(post["author_id"], "알 수 없는 사용자")
     
-    # 💡 [새로운 기능] 내가 쓴 글을 조회할 때, 아직 안 읽은 댓글이 있다면 모두 '읽음' 처리!
-    if post["author_id"] == st.session_state.student_id:
-        supabase.table("qna_comments").update({"is_read": True}).eq("post_id", post["id"]).eq("is_read", False).execute()
-
     col_btn1, col_btn2 = st.columns([4, 1])
     with col_btn1:
         if st.button("◀ 목록으로 돌아가기"):
