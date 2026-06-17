@@ -1,6 +1,7 @@
 import streamlit as st
 from supabase import create_client
 import datetime
+from datetime import timezone, timedelta
 
 # 1. 수파베이스 클라이언트 초기화
 try:
@@ -11,8 +12,6 @@ except Exception as e:
     st.error(f"수파베이스 연결 오류: {e}")
     st.stop()
 
-st.set_page_config(page_title="교내 멘토-멘티 시스템", page_icon="🏫")
-
 # 2. 로그인 상태 관리용 세션 초기화
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -20,7 +19,6 @@ if "logged_in" not in st.session_state:
     st.session_state.name = None
 
 def logout():
-    # 세션에 남아있는 채팅방, 게시판 등 모든 방문 기록을 싹 비워줍니다 (대청소)
     st.session_state.clear() 
     st.rerun()
 
@@ -75,7 +73,7 @@ if not st.session_state.logged_in:
                 st.warning("모든 칸을 빠짐없이 입력해 주세요.")
 
 # ==========================================
-# 4. 메인 화면: 내 프로필 통합 관리 창
+# 4. 메인 화면: 실시간 대시보드 및 프로필 관리
 # ==========================================
 else:
     st.sidebar.write(f"👤 **{st.session_state.name}** 학생")
@@ -83,42 +81,77 @@ else:
     if st.sidebar.button("로그아웃"):
         logout()
 
-    st.title("📝 멘토-멘티 프로필 관리")
-    st.write(f"**{st.session_state.name}**님, 나의 멘토 프로필과 멘티 프로필을 각각 관리할 수 있습니다.")
+    st.title("🏫 교내 멘토링 라운지")
+    st.write(f"환영합니다, **{st.session_state.name}**님! 현재 우리 학교의 멘토링 현황입니다.")
+    
+    # 💡 [새로운 기능] 실시간 데이터베이스 통계 긁어오기
+    # 한국 시간(KST) 기준으로 오늘의 시작(00:00) 시간 구하기
+    KST = timezone(timedelta(hours=9))
+    today_kst_str = datetime.datetime.now(KST).strftime("%Y-%m-%d")
+    today_start_iso = f"{today_kst_str}T00:00:00+09:00"
+
+    try:
+        # 1. 전체 등록 멘토 수
+        mentor_res = supabase.table("profiles").select("student_id", count="exact").eq("role", "멘토").execute()
+        total_mentors = mentor_res.count if mentor_res.count else 0
+        
+        # 2. 오늘 하루동안 새롭게 신청/성사된 매칭 수 (오늘 날짜 이후 생성된 데이터)
+        match_res = supabase.table("matches").select("id", count="exact").gte("created_at", today_start_iso).execute()
+        today_matches = match_res.count if match_res.count else 0
+        
+        # 3. 오늘 하루동안 올라온 QnA 질문 수
+        qna_res = supabase.table("qna_board").select("id", count="exact").gte("created_at", today_start_iso).execute()
+        today_qnas = qna_res.count if qna_res.count else 0
+    except Exception as e:
+        total_mentors, today_matches, today_qnas = 0, 0, 0
+
+    # 📊 대시보드 UI (st.metric 활용)
+    # 배경을 살짝 감싸주기 위해 컨테이너 사용
+    with st.container(border=True):
+        st.markdown("#### 📡 실시간 플랫폼 현황")
+        col_m1, col_m2, col_m3 = st.columns(3)
+        with col_m1:
+            st.metric(label="🔥 활동 중인 총 멘토", value=f"{total_mentors}명")
+        with col_m2:
+            st.metric(label="🤝 오늘 성사된 매칭", value=f"{today_matches}건", delta="오늘 새롭게 연결됨!")
+        with col_m3:
+            st.metric(label="💬 오늘 올라온 QnA", value=f"{today_qnas}개", delta="답변을 기다려요", delta_color="normal")
+
+    st.markdown("---")
+
+    # ==========================================
+    # 기존 프로필 관리 기능 (내용 동일)
+    # ==========================================
+    st.subheader("📝 나의 프로필 관리")
     
     try:
         profile_res = supabase.table("profiles").select("*").eq("student_id", st.session_state.student_id).execute()
         existing_profiles = profile_res.data
     except Exception as e:
-        st.error(f"기존 프로필을 불러오는 중 오류 발생: {e}")
         existing_profiles = []
         
     mentor_profile = next((p for p in existing_profiles if p.get("role") == "멘토"), None)
     mentee_profile = next((p for p in existing_profiles if p.get("role") == "멘티"), None)
     
-    st.markdown("### 📊 나의 프로필 현황")
-    col_m1, col_m2 = st.columns(2)
-    with col_m1:
+    st.markdown("##### 📊 나의 프로필 현황")
+    col_p1, col_p2 = st.columns(2)
+    with col_p1:
         if mentor_profile:
             st.success("👨‍🏫 멘토 프로필: **등록 완료** (수정 가능)")
         else:
             st.info("👨‍🏫 멘토 프로필: **미등록**")
-    with col_m2:
+    with col_p2:
         if mentee_profile:
             st.success("👩‍🎓 멘티 프로필: **등록 완료** (수정 가능)")
         else:
             st.info("👩‍🎓 멘티 프로필: **미등록**")
             
-    st.markdown("---")
-    
-    subject_list = ["국어", "수학", "영어", "과탐", "사탐", "수행평가", "기타"]
+    subject_list = ["국어", "수학", "영어", "과학", "사회", "파이썬", "C언어", "기타"]
     time_list = ["평일 방과후", "평일 저녁", "주말 오전", "주말 오후", "주말 저녁"]
     
     tab_mentor, tab_mentee = st.tabs(["👨‍🏫 멘토 프로필 관리", "👩‍🎓 멘티 프로필 관리"])
     
-    # ----------------------------------------
     # [1] 👨‍🏫 멘토 프로필 탭
-    # ----------------------------------------
     with tab_mentor:
         is_mentor_edit = mentor_profile is not None
         
@@ -133,8 +166,7 @@ else:
                     st.info("⭐ 아직 받은 별점 평가가 없습니다. 첫 멘토링을 성공적으로 마쳐보세요!")
             except:
                 pass
-                
-            st.caption("✨ 기존에 작성한 멘토 프로필 정보를 불러왔습니다. 수정 후 하단 버튼을 누르면 업데이트됩니다.")
+            st.caption("✨ 기존에 작성한 멘토 프로필 정보를 불러왔습니다.")
         else:
             st.caption("✨ 아직 작성된 멘토 프로필이 없습니다. 새로 입력해 주세요.")
 
@@ -166,31 +198,27 @@ else:
                         st.success("🎉 멘토 프로필이 신규 등록되었습니다!")
                     st.rerun()
                     
-        # 💡 [핵심 버그 수정 1] 멘토 삭제 방어 로직
         if is_mentor_edit:
             try:
-                # 현재 내가 멘토인 매칭 중 '대기중'이거나 '수락됨'인 상태가 있는지 확인
                 active_mentor_res = supabase.table("matches").select("id").eq("mentor_id", st.session_state.student_id).in_("status", ["대기중", "수락됨"]).execute()
                 active_mentor_matches = active_mentor_res.data
             except:
                 active_mentor_matches = []
                 
             if active_mentor_matches:
-                st.warning("⚠️ 현재 진행 중이거나 요청받은 멘토링이 있어 프로필을 삭제할 수 없습니다. 멘토링을 먼저 종료하거나 거절해 주세요.")
+                st.warning("⚠️ 현재 진행 중이거나 요청받은 멘토링이 있어 프로필을 삭제할 수 없습니다.")
             else:
                 if st.button("🗑️ 내 멘토 프로필 목록에서 내리기 (삭제)", type="primary", use_container_width=True):
                     supabase.table("profiles").delete().eq("student_id", st.session_state.student_id).eq("role", "멘토").execute()
-                    st.success("멘토 프로필이 삭제되었습니다. 이제 매칭 명단에 나타나지 않습니다.")
+                    st.success("멘토 프로필이 삭제되었습니다.")
                     st.rerun()
 
-    # ----------------------------------------
     # [2] 👩‍🎓 멘티 프로필 탭
-    # ----------------------------------------
     with tab_mentee:
         is_mentee_edit = mentee_profile is not None
         
         if is_mentee_edit:
-            st.caption("✨ 기존에 작성한 멘티 프로필 정보를 불러왔습니다. 수정 후 하단 버튼을 누르면 업데이트됩니다.")
+            st.caption("✨ 기존에 작성한 멘티 프로필 정보를 불러왔습니다.")
         else:
             st.caption("✨ 아직 작성된 멘티 프로필이 없습니다. 새로 입력해 주세요.")
 
@@ -244,17 +272,15 @@ else:
                         st.success("🎉 멘티 프로필이 신규 등록되었습니다!")
                     st.rerun()
 
-        # 💡 [핵심 버그 수정 2] 멘티 삭제 방어 로직
         if is_mentee_edit:
             try:
-                # 현재 내가 멘티인 매칭 중 '대기중'이거나 '수락됨'인 상태가 있는지 확인
                 active_mentee_res = supabase.table("matches").select("id").eq("mentee_id", st.session_state.student_id).in_("status", ["대기중", "수락됨"]).execute()
                 active_mentee_matches = active_mentee_res.data
             except:
                 active_mentee_matches = []
                 
             if active_mentee_matches:
-                st.warning("⚠️ 현재 진행 중이거나 신청해 둔 멘토링이 있어 프로필을 삭제할 수 없습니다. 멘토링을 먼저 종료해 주세요.")
+                st.warning("⚠️ 현재 진행 중이거나 신청해 둔 멘토링이 있어 프로필을 삭제할 수 없습니다.")
             else:
                 if st.button("🗑️ 내 멘티 프로필 목록에서 내리기 (삭제)", type="primary", use_container_width=True):
                     supabase.table("profiles").delete().eq("student_id", st.session_state.student_id).eq("role", "멘티").execute()
