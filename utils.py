@@ -86,20 +86,7 @@ def render_global_notification_center(supabase):
             except:
                 st.caption("댓글을 불러왔습니다.")
                 # ==========================================
-# 💡 페이지 이동 감지 및 세션(채팅/게시글) 자동 초기화 센서
-# ==========================================
-def manage_page_state(current_page_name):
-    # 처음 접속했을 때 현재 페이지 이름 저장
-    if "last_page" not in st.session_state:
-        st.session_state.last_page = current_page_name
-        
-    # 만약 '이전에 있던 페이지'와 '지금 들어온 페이지'가 다르다면? (메뉴를 이동했다면!)
-    if st.session_state.last_page != current_page_name:
-        # 켜져 있던 채팅방이나 상세 게시글 상태를 강제로 삭제해서 목록으로 되돌림
-        if "current_chat_match" in st.session_state:
-            del st.session_state.current_chat_match
-        if "current_post" in st.session_state:
-            del st.session_state.current_post
+
             
         # 다시 현재 페이지로 업데이트
         st.session_state.last_page = current_page_name
